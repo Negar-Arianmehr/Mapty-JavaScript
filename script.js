@@ -16,7 +16,7 @@ class Workout {
   //unique identifier
   //-10 last 10 number
   id = (Date.now() + '').slice(-10);
-  clicks = 0
+  clicks = 0;
 
   constructor(coords, distance, duration) {
     // this.date =..
@@ -33,7 +33,7 @@ class Workout {
   }
 
   click() {
-    this.clicks++
+    this.clicks++;
   }
 }
 
@@ -177,12 +177,18 @@ class App {
 
   //constructor function is called immediately when a new object created from this class
   constructor() {
+    //get user's position
     this._getPosition();
+
+    //get data from localstage.....why here? beacuse it parse after loading page
+    this._getLocalStorage();
+
     //this._newWorkout>>>>>  it is an event handler function will always have the this keyword of the dumb element onto which it is attached. here is form element
     //for solving this problem we have to use bind
+    //Attach event handlers
     form.addEventListener('submit', this._newWorkout.bind(this));
     inputType.addEventListener('change', this._toggleElevationField);
-    containerWorkouts.addEventListener("click", this._moveToPopup.bind(this));
+    containerWorkouts.addEventListener('click', this._moveToPopup.bind(this));
   }
 
   _getPosition() {
@@ -212,6 +218,13 @@ class App {
 
     this.#map.on('click', this._showForm.bind(this));
 
+    //we put it here to render as soon as the map load
+    //I explain it after getLocalStorage
+    this.#workouts.forEach(work => {
+      this._renderWorkout(work);
+      this._renderWorkoutMarker(work)
+    });
+
   }
 
   _showForm(mapE) {
@@ -224,9 +237,9 @@ class App {
     //empty input
     inputDistance.value = inputCadence.value = inputDuration.value = inputElevation.value = '';
 
-    form.style.display = "none";
-    form.classList.add("hidden")
-    setTimeout(() => form.style.display = "grid", 1000)
+    form.style.display = 'none';
+    form.classList.add('hidden');
+    setTimeout(() => form.style.display = 'grid', 1000);
   }
 
   _toggleElevationField() {
@@ -283,7 +296,10 @@ class App {
     this._renderWorkout(workout);
 
 //Hide form + Clear input firld
-    this._hideForm()
+    this._hideForm();
+
+    //Set local storage to all workouts
+    this._setLocalStorage();
   }
 
   _renderWorkoutMarker(workout) {
@@ -294,7 +310,7 @@ class App {
           minwidth: 100,
           autoClose: false,
           closeOnClick: false,
-          className: `${workout.type}-popup`
+          className: `${workout.type}-popup`,
         })
       )
       .setPopupContent(`${workout.type === 'running' ? '🏃' : '♂'} ${workout.description}`)
@@ -303,7 +319,7 @@ class App {
 
   _renderWorkout(workout) {
     let html = `
-      <li class='workout workout--running' data-id='${workout.id}'>
+      <li class='workout workout--${workout.type}' data-id='${workout.id}'>
       <h2 class='workout__title'>${workout.description}</h2>
       <div class='workout__details'>
         <span class='workout__icon'>${workout.type === 'running' ? '🏃' : '♂'}</span>
@@ -323,30 +339,30 @@ class App {
         <span class='workout__value'>${workout.pace.toFixed(1)}</span>
         <span class='workout__unit'>min/km</span>
       </div>
-       <div class="workout__details">
-        <span class="workout__icon">🦶🏼</span>
-        <span class="workout__value">${workout.cadence}</span>
-        <span class="workout__unit">spm</span>
+       <div class='workout__details'>
+        <span class='workout__icon'>🦶🏼</span>
+        <span class='workout__value'>${workout.cadence}</span>
+        <span class='workout__unit'>spm</span>
       </div>
-      `
+      `;
 
-    if (workout.type === "cycling")
-      html += `<div class="workout__details">
-        <span class="workout__icon">⚡️</span>
-        <span class="workout__value">${workout.speed.toFixed(1)}</span>
-        <span class="workout__unit">km/h</span>
+    if (workout.type === 'cycling')
+      html += `<div class='workout__details'>
+        <span class='workout__icon'>⚡️</span>
+        <span class='workout__value'>${workout.speed.toFixed(1)}</span>
+        <span class='workout__unit'>km/h</span>
       </div>
-      <div class="workout__details">
-        <span class="workout__icon">⛰</span>
-        <span class="workout__value">${workout.elevationGain}</span>
-        <span class="workout__unit">m</span>
-      </div>`
+      <div class='workout__details'>
+        <span class='workout__icon'>⛰</span>
+        <span class='workout__value'>${workout.elevationGain}</span>
+        <span class='workout__unit'>m</span>
+      </div>`;
 
-    form.insertAdjacentHTML("afterend", html)
+    form.insertAdjacentHTML('afterend', html);
   }
 
   _moveToPopup(e) {
-    const workoutEl = e.target.closest(".workout");
+    const workoutEl = e.target.closest('.workout');
     console.log(workoutEl);
 
     if (!workoutEl) return;
@@ -354,19 +370,63 @@ class App {
     //when we click of form, it can find it on the map
     const workout = this.#workouts.find(
       work => work.id === workoutEl.dataset.id
-    )
+    );
     console.log(workout);
 
     this.#map.setView(workout.coords, this.#mapZoomLevel, {
       animate: true,
       pan: {
-        duration: 1,
+        duration: 1
       }
-    })
+    });
 
     //using the public interface
-    workout.click()
+    // when we load and get string from localstage this methode doesnt work anymore because
+    //after geting the object again from storage the prototype chain is not like before
+    // workout.click();
   }
+
+  //localstirage : an API that the browser provides for us
+  //first argument: a name
+  //second one :needs to be a string that we want to store and which will be associated with this key("workout")).
+  //we can convert object to string with JSON.stringify(nameOF Object)>>> it is the methode to convert any object in JavaScript to a string.
+  //we storage this.workout in the objest by key workouts and value as string
+  //localStorage >>> is a object that contains a lot of methodes and properties in the browser.
+  _setLocalStorage() {
+    localStorage.setItem('workouts', JSON.stringify(this.#workouts));
+  }
+
+  //we have data in local stage, now we want to parse them with JSON.parse
+  //workouts: the identifier of our local storage item,
+  _getLocalStorage() {
+    const data = JSON.parse(localStorage.getItem('workouts'));
+    console.log(data);
+
+    if (!data) return;
+
+    //data is to restore our workouts array.
+    //_getLocalStorage is executed right in the begging...so wourkouts is empty and if
+    //there is a data it will set to workouts array
+    this.#workouts = data;
+
+    //now we get all these workouts and render them in the list
+    // this.#workouts.forEach(work => {
+    //   this._renderWorkout(work);
+    //   //rander it in the map
+    //   //it doesnt work>>>>> because in the renderWourkoutMark there is map methode that doesnt define in the beggining of loading page
+    //   //so we have to put it where the map is loading
+    //   // this._renderWorkoutMarker(work)
+    // });
+
+  }
+
+  //if we want to reset all of workouts from list
+    reset() {
+      localStorage.removeItem("workouts")
+      ////location>>> is a object that contains a lot of methodes and properties in the browser.
+      //reload is one of the method for reload the page
+      location.reload()
+    }
 
 }
 
